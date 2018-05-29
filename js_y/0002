@@ -1,0 +1,161 @@
+// SETTINGS VARS AND CONSTANTS //
+// ================================================================= //
+var goOn = true; // eсли =false то остановится на первой же итерации - использовать вручную для срочной остановки выполнения скрипта
+var microBet = 0.00000001;
+var minBet = 0.00000001;  //
+var theBet = 0.00001000;  // это ставка с которой начинаем (обычно равна базовой)
+var theBetMultiplier = 3; // множитель для theBet после проигрыша
+var theBaseBet = 0.00001000;  // это базовая ставка
+var balAfterLoose; // в эту переменную фксируем баланс после проигрыша
+var theBetAfterLooseMultiplier = 3;
+var minTimeOut = 1000;
+var startBalance;
+var prevBalance;
+var currentBalance;
+var hiOrLo = 0;
+var problem = 0;
+var workBet = minBet;
+var betDone;
+var losescount = 0;
+var winscount = 0;
+var totalWins = 0;
+var currentStake;
+var multiplier = 2;
+var btnTxtVal = ['',''];
+var maxWLBal = 0;
+var startAfterWinTime = new Date();
+var currentTime = new Date();
+var timeGapMs = 60000;
+var timeGapMsAfterLost = 1*1;
+var timeGapMsAfterWin = 1*1;
+var process = true;
+var gapStrArr = [];
+var countArr = [];
+var stopAfter = 3;   // тут кол-во ставок minBet после которого произойдет переключение на 0.00000001
+var maxIteration = 3;
+var setUpBet = false;
+var setUpDoubleBet = false;
+var winsArr = [];
+var winsArrTot = [0,0,0,0];
+var maxTheBet = 0;
+var maxWorkBet = 0;
+var maxBalance = 0;
+var minBalance = 0;
+
+/////////////////////////////////
+/// FUNCTIONS AND PROCEDURES ///
+function getCurrentBalance() {
+    var balanceString = $('.chosen-single').text();
+    balanceString = balanceString.substring((balanceString.indexOf('-') + 2));
+    balanceString = balanceString.substr(0,balanceString.indexOf(' '));
+    return parseFloat(balanceString);
+}
+
+function reverceHiLo() {
+    if (hiOrLo == 0) {hiOrLo = 1} else {hiOrLo = 0}
+}
+
+function finishConsolePrint (logStr) {
+    console.log(logStr + ' | WON: ' + totalWins + ' | maxWLBal: ' + maxWLBal + ' | arrNum.length: ' + arrNum.length + ' | arrNum: ' + arrNum);
+}
+
+function printResultsAtStop () {
+    console.log('=======++++++++=======++++++++=======++++++++=======++++++++=======++++++++=======');
+    console.log('StartBalance:  ' + startBalance.toFixed(8));
+    console.log('FinishBalance: ' + currentBalance.toFixed(8));
+    console.log('Won/Lost     : ' + (currentBalance-startBalance).toFixed(8));
+    console.log('winsArr: ' + winsArr + ' | winsArrTot: ' + winsArrTot);
+    console.log('maxTheBet = ' + maxTheBet.toFixed(8) + ' | maxWorkBet = ' + maxWorkBet.toFixed(8));
+    console.log('maxBalance = ' + maxBalance.toFixed(8) + ' | minBalance = ' + minBalance.toFixed(8));
+    console.log('=======++++++++=======++++++++=======++++++++=======++++++++=======++++++++=======');
+}
+
+function RollDice() {
+    var i = 1;
+    var timerId = setTimeout(function go() {
+        if (i !== 1) { //if not first iteration
+            currentBalance = getCurrentBalance(); // console.log(currentBalance);
+            currentTime = new Date();
+            if ((currentTime - startAfterWinTime) > timeGapMs ) {process = true} else {process = false}
+            if (process) {
+                if ((currentBalance == prevBalance)|($('.clDicePlay')[hiOrLo].value !== btnTxtVal[hiOrLo])) {
+                    if ($('.clDicePlay')[hiOrLo].value !== btnTxtVal[hiOrLo]) {
+                        problem = 1;
+                    } else {
+                        problem = 0;
+                    }
+                } else {
+                    betDone = workBet;
+                    workBet = minBet;
+                    if ((currentBalance - prevBalance) > 0) { // if WIN WIN WIN WIN WIN WIN WIN WIN WIN WIN WIN WIN WIN WIN
+                        gapStrArr.push(losescount);
+                        if (typeof countArr[losescount] == 'undefined' && countArr[losescount] == null) {
+                            countArr[losescount] = 0;
+                        }
+                        countArr[losescount]++;
+                        winscount++;
+                        losescount = 0;
+                        reverceHiLo();
+                        console.log('WIN | ' + gapStrArr + ' | ' + countArr + ' | CurrentBalance:  ' + currentBalance.toFixed(8));
+                        startAfterWinTime = new Date(); process = false; timeGapMs = timeGapMsAfterWin;
+                        if (gapStrArr.length == stopAfter) {
+                            if (minBet == microBet*2) {
+                                //winsArr.push(0);
+                                winsArrTot[0]++
+                            }
+                            if (minBet == theBet) {
+                                winsArr.push(1);winsArrTot[1]++;
+                                if (currentBalance >= (theBet*stopAfter*theBetAfterLooseMultiplier+balAfterLoose)) {theBet = theBaseBet}
+                            }
+                            minBet = microBet;workBet = minBet;$('.bet').val(workBet.toFixed(8));
+                        }
+                        if (setUpBet) {minBet = microBet*2; workBet = minBet;$('.bet').val(workBet.toFixed(8)); gapStrArr.length = 0 ; setUpBet = false}
+                        if (setUpDoubleBet) {minBet = theBet; workBet = minBet;$('.bet').val(workBet.toFixed(8)); gapStrArr.length = 0 ; setUpDoubleBet = false}
+                    } else {                                // if LOOSE LOOSE LOOSE LOOSE LOOSE LOOSE LOOSE LOOSE LOOSE LOOSE
+                        winscount=0;
+                        losescount++;
+                        workBet = betDone * multiplier;
+                        console.log('LOST | ' + 'workBet = ' + workBet + ' | minBet = ' + minBet);
+                        if (workBet > (minBet*Math.pow(multiplier,maxIteration))) {
+                            if (minBet == microBet) { setUpBet = true }
+                            if (minBet > microBet) {
+                                if (minBet == microBet*2) { setUpDoubleBet = true }
+                                if (minBet == theBet) {
+                                    winsArr.push(2);winsArrTot[2]++;
+                                    theBet = theBet * theBetMultiplier; balAfterLoose = currentBalance;
+                                    }
+                                minBet = microBet; workBet = minBet; $('.bet').val(workBet.toFixed(8));
+                            }
+                        }
+                        startAfterWinTime = new Date(); process = false; timeGapMs = timeGapMsAfterLost;
+                    }
+                    //             $('.bet').val(workBet.toFixed(8));
+                    prevBalance = currentBalance;
+                }
+            }
+        }
+        if (maxTheBet < theBet) {maxTheBet = theBet}
+        if (maxWorkBet < workBet) {maxWorkBet = workBet}
+        if (minBalance > currentBalance) {minBalance = currentBalance}
+        if (maxBalance < currentBalance) {maxBalance = currentBalance}
+        if (workBet > currentBalance) {goOn = false; printResultsAtStop();}
+        $('.bet').val(workBet.toFixed(8));
+        if ((problem == 0)&(goOn)&(process)) {
+            $('.clDicePlay')[hiOrLo].click(); // Roll Dices here
+        }
+        problem = 0;
+        if ( goOn ) setTimeout(go, minTimeOut);
+        i++;
+    }, minTimeOut);
+}
+/////////////////////////////////
+///       SCRIPT BODY         ///
+$('.bet').val(minBet.toFixed(8));
+btnTxtVal[0] = $('.clDicePlay')[0].value;
+btnTxtVal[1] = $('.clDicePlay')[1].value;
+startBalance = getCurrentBalance();
+console.log('startBalance: ' + startBalance); minBalance = startBalance;
+startAfterWinTime = currentTime - timeGapMs;
+minBet = microBet;
+
+RollDice();
